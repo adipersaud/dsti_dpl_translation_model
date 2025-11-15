@@ -47,13 +47,13 @@ st.sidebar.title("Model Selection")
 
 model_descriptions = {
     "Fine-tuned (Full dataset, 1.2M rows)": "Trained on the full 1.2M English–French dataset for maximum accuracy and coverage.",
-    "Fine-tuned (Distilled dataset)": "Trained on a distilled subset (~200k pairs) optimized for faster inference with minimal quality loss and SacreBLEU alignment",
+    "Fine-tuned (Distilled dataset sacrebleu)": "Trained on a distilled subset (~200k pairs) optimized for faster inference with minimal quality loss and SacreBLEU alignment",
     "Fine-tuned (Distilled dataset comet)": "Trained on a distilled subset (~200k pairs) optimized for faster inference with minimal quality loss and COMET alignment.",
 }
 
 model_options = {
     "Fine-tuned (Full dataset, 1.2M rows)": "apersaud/opus-mt-en-fr-finetuned-en-to-fr_multi-metric",
-    "Fine-tuned (Distilled dataset)": "apersaud/opus-mt-en-fr-finetuned-en-to-fr_multi-metric-distilled_dataset",
+    "Fine-tuned (Distilled dataset sacrebleu)": "apersaud/opus-mt-en-fr-finetuned-en-to-fr_multi-metric-distilled_dataset",
     "Fine-tuned (Distilled dataset comet)": "apersaud/opus-mt-en-fr-finetuned-en-to-fr_multi-metric-distilled_dataset_comet",
 }
 
