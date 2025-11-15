@@ -18,7 +18,6 @@ env/
 *.csv
 *.tsv
 *.json
-*.txt
 *.pth
 *.pt
 
