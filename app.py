@@ -46,9 +46,9 @@ st.markdown("""
 st.sidebar.title("Model Selection")
 
 model_descriptions = {
-    "Fine-tuned (Full dataset, 1.2M rows)": "Trained on the full 1.2M English–French dataset.",
-    "Fine-tuned (Distilled dataset)": "Distilled subset (~200k pairs) optimized for speed.",
-    "Fine-tuned (Distilled dataset comet)": "Distilled dataset optimized using COMET during training (still usable without COMET)."
+    "Fine-tuned (Full dataset, 1.2M rows)": "Trained on the full 1.2M English–French dataset for maximum accuracy and coverage.",
+    "Fine-tuned (Distilled dataset)": "Trained on a distilled subset (~200k pairs) optimized for faster inference with minimal quality loss and SacreBLEU alignment",
+    "Fine-tuned (Distilled dataset comet)": "Trained on a distilled subset (~200k pairs) optimized for faster inference with minimal quality loss and COMET alignment.",
 }
 
 model_options = {
@@ -56,6 +56,7 @@ model_options = {
     "Fine-tuned (Distilled dataset)": "apersaud/opus-mt-en-fr-finetuned-en-to-fr_multi-metric-distilled_dataset",
     "Fine-tuned (Distilled dataset comet)": "apersaud/opus-mt-en-fr-finetuned-en-to-fr_multi-metric-distilled_dataset_comet",
 }
+
 
 model_choice = st.sidebar.selectbox("Choose translation model", list(model_options.keys()))
 model_path = model_options[model_choice]
