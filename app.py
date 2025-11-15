@@ -8,11 +8,14 @@ import evaluate
 import pandas as pd
 from huggingface_hub import InferenceClient
 
-def safe_json_str(x):
-    """Convert input to a clean JSON-safe string."""
+import json
+
+def to_json_string(x):
     if x is None:
         return ""
-    return str(x).replace("\n", " ").strip()
+    # Convert to string and ensure it's valid JSON
+    return json.loads(json.dumps(str(x).strip()))
+
 
 
 import nltk
@@ -133,7 +136,6 @@ if "COMET" in metric_options:
 else:
     comet_api = None
 
-# Compute Metrics
 def compute_selected_metrics(preds, refs, srcs=None):
     refs_wrapped = [[r] for r in refs]
     out = {}
@@ -156,20 +158,21 @@ def compute_selected_metrics(preds, refs, srcs=None):
         except Exception as e:
             out[name] = f"Error: {e}"
 
-    # COMET API
     if comet_api is not None and refs and srcs:
         try:
             payload = {
-                "src": safe_json_str(srcs[0]),
-                "mt": safe_json_str(preds[0]),
-                "ref": safe_json_str(refs[0])
+                "src": to_json_string(srcs[0]),
+                "mt": to_json_string(preds[0]),
+                "ref": to_json_string(refs[0])
             }
-
-            response = comet_api.post_json(payload)
+            response = comet_api.post(json=payload)
             out["COMET"] = response.get("score", None)
-
         except Exception as e:
             out["COMET"] = f"Error: {e}"
+
+    return out 
+
+
 
 
 # Translation function
