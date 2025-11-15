@@ -7,6 +7,10 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import evaluate
 import pandas as pd
 
+import nltk
+nltk.download("wordnet", quiet=True)
+nltk.download("punkt", quiet=True)
+
 
 # Page config FIRST
 st.set_page_config(page_title="EN → FR Translator", page_icon=":congratulations:", layout="centered")
