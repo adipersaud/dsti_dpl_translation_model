@@ -8,6 +8,13 @@ import evaluate
 import pandas as pd
 from huggingface_hub import InferenceClient
 
+def safe_json_str(x):
+    """Convert input to a clean JSON-safe string."""
+    if x is None:
+        return ""
+    return str(x).replace("\n", " ").strip()
+
+
 import nltk
 nltk.download("wordnet", quiet=True)
 nltk.download("punkt", quiet=True)
@@ -152,14 +159,18 @@ def compute_selected_metrics(preds, refs, srcs=None):
     # COMET API
     if comet_api is not None and refs and srcs:
         try:
-            response = comet_api.post_json({
-                "src": srcs[0],
-                "mt": preds[0],
-                "ref": refs[0]
-            })
+            payload = {
+                "src": safe_json_str(srcs[0]),
+                "mt": safe_json_str(preds[0]),
+                "ref": safe_json_str(refs[0])
+            }
+
+            response = comet_api.post_json(payload)
             out["COMET"] = response.get("score", None)
+
         except Exception as e:
             out["COMET"] = f"Error: {e}"
+
 
 # Translation function
 def translate_batch(sentences):
