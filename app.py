@@ -127,16 +127,15 @@ if "COMET" in metric_options:
 
         @st.cache_resource
         def load_comet_model():
-            # Official small QE model (≈60MB) suitable for Streamlit Cloud
-            ckpt_path = download_model("wmt20-comet-qe-mini")
+            ckpt_path = download_model("cometinho-da") 
             model = load_from_checkpoint(ckpt_path)
             return model
 
         comet_model = load_comet_model()
-        st.sidebar.success("COMETKiwi-mini loaded successfully")
+        st.sidebar.success("COMET (cometinho-da) loaded successfully")
 
     except Exception as e:
-        st.warning(f"Failed to load COMETKiwi-mini: {e}")
+        st.warning(f"Failed to load COMET: {e}")
         comet_model = None
 else:
     comet_model = None
