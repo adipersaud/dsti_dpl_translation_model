@@ -173,8 +173,6 @@ def compute_selected_metrics(preds, refs, srcs=None):
     return out 
 
 
-
-
 # Translation function
 def translate_batch(sentences):
     inputs = tokenizer(sentences, return_tensors="pt", padding=True, truncation=True).to(device)
