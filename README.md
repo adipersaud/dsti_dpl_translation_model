@@ -2,7 +2,7 @@
 
 An interactive **Streamlit** web application for **English–French translation**, fine-tuned on the OPUS corpus (Full and Distilled) datasets using **Transformer-based encoder–decoder models** from [Hugging Face Transformers](https://huggingface.co/transformers).
 
-The app allows users to **translate sentences or batch files** and **evaluate translation quality** using multiple metrics such as **BLEU**, **SacreBLEU**, **METEOR**, **chrF**, **BERTScore**, and **COMET**.
+The app allows users to **translate sentences or batch files** and **evaluate translation quality** using multiple metrics such as **BLEU**, **SacreBLEU**, **METEOR**, **chrF** and **BERTScore**.
 
 ---
 
@@ -23,7 +23,6 @@ Supports automatic computation of:
 - **METEOR** — includes stemming, synonym, and order matching.  
 - **chrF** — character-level metric for morphology.  
 - **BERTScore** — contextual semantic similarity.  
-- **COMET** — neural metric aligned with human judgments.
 
 ---
 
