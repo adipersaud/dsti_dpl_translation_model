@@ -6,20 +6,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import evaluate
 import pandas as pd
-from huggingface_hub import InferenceClient
-
 import json
-
-import comet
-st.write("COMET version:", comet.__version__)
-
-def to_json_string(x):
-    if x is None:
-        return ""
-    # Convert to string and ensure it's valid JSON
-    return json.loads(json.dumps(str(x).strip()))
-
-
 
 import nltk
 nltk.download("wordnet", quiet=True)
@@ -61,7 +48,7 @@ st.sidebar.title("Model Selection")
 model_descriptions = {
     "Fine-tuned (Full dataset, 1.2M rows)": "Trained on the full 1.2M English–French dataset.",
     "Fine-tuned (Distilled dataset)": "Distilled subset (~200k pairs) optimized for speed.",
-    "Fine-tuned (Distilled dataset comet)": "Distilled dataset optimized for COMET alignment."
+    "Fine-tuned (Distilled dataset comet)": "Distilled dataset optimized using COMET during training (still usable without COMET)."
 }
 
 model_options = {
@@ -81,7 +68,7 @@ use_base_fallback = st.sidebar.checkbox(f"Fallback to base model ({base_checkpoi
 st.sidebar.markdown("---")
 metric_options = st.sidebar.multiselect(
     "Select metrics",
-    ["BLEU", "SacreBLEU", "METEOR", "BERTScore", "chrF", "COMET"],
+    ["BLEU", "SacreBLEU", "METEOR", "BERTScore", "chrF"],
     default=["SacreBLEU", "chrF"]
 )
 
@@ -124,27 +111,8 @@ if "BERTScore" in metric_options:
 if "chrF" in metric_options:
     metric_loaders["chrF"] = safe_load_metric("chrf")
 
-if "COMET" in metric_options:
-    try:
-        from comet import download_model, load_from_checkpoint
-
-        @st.cache_resource
-        def load_comet_model():
-            ckpt_path = download_model("cometinho-da") 
-            model = load_from_checkpoint(ckpt_path)
-            return model
-
-        comet_model = load_comet_model()
-        st.sidebar.success("COMET (cometinho-da) loaded successfully")
-
-    except Exception as e:
-        st.warning(f"Failed to load COMET: {e}")
-        comet_model = None
-else:
-    comet_model = None
-
-
-def compute_selected_metrics(preds, refs, srcs=None):
+# Metric computation
+def compute_selected_metrics(preds, refs):
     refs_wrapped = [[r] for r in refs]
     out = {}
 
@@ -160,31 +128,20 @@ def compute_selected_metrics(preds, refs, srcs=None):
                 out[name] = metric.compute(predictions=preds, references=refs)["meteor"]
             elif name == "BERTScore":
                 b = metric.compute(predictions=preds, references=refs, lang="fr")
-                out["BERTScore_F1"] = sum(b["f1"]) / len(b["f1"])
+                out["BERTScore_F1"] = float(sum(b["f1"]) / len(b["f1"]))
             elif name == "chrF":
                 out["chrF"] = metric.compute(predictions=preds, references=refs_wrapped)["score"]
         except Exception as e:
             out[name] = f"Error: {e}"
 
-    if comet_model is not None and refs and srcs:
-        try:
-            data = [{
-                "src": srcs[0],
-                "mt": preds[0],
-                "ref": refs[0]
-            }]
-            result = comet_model.predict(data, batch_size=8, gpus=0)
-            out["COMET"] = float(result["system_score"])
-        except Exception as e:
-            out["COMET"] = f"Error: {e}"
-
+    return out
 
 # Translation function
 def translate_batch(sentences):
     inputs = tokenizer(sentences, return_tensors="pt", padding=True, truncation=True).to(device)
     with torch.no_grad():
         outputs = model.generate(**inputs)
-    return [tokenizer.decode(g, skip_special_tokens=True) for g in outputs]
+    return [tokenizer.decode(g, skip_special_tokens=True).strip() for g in outputs]
 
 # UI
 st.title("English → French Translation")
@@ -204,7 +161,7 @@ if run_btn or score_btn:
         st.success(pred)
 
         if score_btn and ref.strip():
-            scores = compute_selected_metrics([pred], [ref], [src])
+            scores = compute_selected_metrics([pred], [ref])
             st.json(scores)
 
 # Batch mode
@@ -234,7 +191,7 @@ if uploaded:
             df["prediction_fr"] = preds
             st.dataframe(df.head())
 
-            scores = compute_selected_metrics(preds, refs, texts)
+            scores = compute_selected_metrics(preds, refs)
             st.json(scores)
 
             st.download_button(
@@ -245,6 +202,6 @@ if uploaded:
 # Notes
 with st.expander("Notes"):
     st.markdown("""
-    - Evaluate with BLEU, METEOR, chrF, BERTScore, or COMET.
-    - COMET is computed using the official Hugging Face API.
+    - Evaluate with BLEU, METEOR, chrF, BERTScore.
+    - COMET has been removed for stability on Streamlit Cloud.
     """)
