@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+
+# Environments
+.env/
+.venv/
+venv/
+env/
+
+# Streamlit cache
+.streamlit/
+
+# Data and models (if large)
+*.csv
+*.tsv
+*.json
+*.txt
+*.pth
+*.pt
+
+
