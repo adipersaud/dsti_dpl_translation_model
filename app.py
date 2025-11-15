@@ -152,12 +152,14 @@ def compute_selected_metrics(preds, refs, srcs=None):
     # COMET API
     if comet_api is not None and refs and srcs:
         try:
-            comet_score = comet_api.post(json={"src": srcs[0], "mt": preds[0], "ref": refs[0]})
-            out["COMET"] = comet_score.get("score", None)
+            response = comet_api.post_json({
+                "src": srcs[0],
+                "mt": preds[0],
+                "ref": refs[0]
+            })
+            out["COMET"] = response.get("score", None)
         except Exception as e:
             out["COMET"] = f"Error: {e}"
-
-    return out
 
 # Translation function
 def translate_batch(sentences):
