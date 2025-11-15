@@ -121,20 +121,26 @@ if "BERTScore" in metric_options:
 if "chrF" in metric_options:
     metric_loaders["chrF"] = safe_load_metric("chrf")
 
-# COMET via HuggingFace API
 if "COMET" in metric_options:
     try:
+        from comet import download_model, load_from_checkpoint
+
         @st.cache_resource
-        def load_comet_api():
-            token = st.secrets["HF_TOKEN"]
-            return InferenceClient("Unbabel/COMET", token=token)
-        comet_api = load_comet_api()
-        st.sidebar.success("COMET API ready")
+        def load_comet_model():
+            # Official small QE model (≈60MB) suitable for Streamlit Cloud
+            ckpt_path = download_model("wmt20-comet-qe-mini")
+            model = load_from_checkpoint(ckpt_path)
+            return model
+
+        comet_model = load_comet_model()
+        st.sidebar.success("COMETKiwi-mini loaded successfully")
+
     except Exception as e:
-        st.warning(f"COMET API error: {e}")
-        comet_api = None
+        st.warning(f"Failed to load COMETKiwi-mini: {e}")
+        comet_model = None
 else:
-    comet_api = None
+    comet_model = None
+
 
 def compute_selected_metrics(preds, refs, srcs=None):
     refs_wrapped = [[r] for r in refs]
@@ -158,19 +164,17 @@ def compute_selected_metrics(preds, refs, srcs=None):
         except Exception as e:
             out[name] = f"Error: {e}"
 
-    if comet_api is not None and refs and srcs:
+    if comet_model is not None and refs and srcs:
         try:
-            payload = {
-                "src": to_json_string(srcs[0]),
-                "mt": to_json_string(preds[0]),
-                "ref": to_json_string(refs[0])
-            }
-            response = comet_api.post(json=payload)
-            out["COMET"] = response.get("score", None)
+            data = [{
+                "src": srcs[0],
+                "mt": preds[0],
+                "ref": refs[0]
+            }]
+            result = comet_model.predict(data, batch_size=8, gpus=0)
+            out["COMET"] = float(result["system_score"])
         except Exception as e:
             out["COMET"] = f"Error: {e}"
-
-    return out 
 
 
 # Translation function
