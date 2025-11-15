@@ -6,74 +6,49 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import evaluate
 import pandas as pd
-from comet import download_model, load_from_checkpoint
-
+from huggingface_hub import InferenceClient
 
 import nltk
 nltk.download("wordnet", quiet=True)
 nltk.download("punkt", quiet=True)
 
-
-# Page config FIRST
+# Page config
 st.set_page_config(page_title="EN → FR Translator", page_icon=":congratulations:", layout="centered")
 
 # Custom Light Blue Theme
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #e6f0fa;
-        color: #0f172a;
-    }
-    section[data-testid="stSidebar"] {
-        background-color: #d4e4f7;
-        color: #0f172a;
-    }
-    h1, h2, h3, h4 {
-        color: #1e3a8a;
-    }
+    .stApp { background-color: #e6f0fa; color: #0f172a; }
+    section[data-testid="stSidebar"] { background-color: #d4e4f7; color: #0f172a; }
+    h1, h2, h3, h4 { color: #1e3a8a; }
     div.stButton > button:first-child {
-        background-color: #3b82f6;
-        color: white;
-        border-radius: 10px;
-        border: none;
-        font-weight: 600;
-        transition: all 0.3s ease-in-out;
+        background-color: #3b82f6; color: white; border-radius: 10px;
+        border: none; font-weight: 600; transition: all 0.3s ease-in-out;
     }
     div.stButton > button:first-child:hover {
-        background-color: #2563eb;
-        transform: scale(1.03);
+        background-color: #2563eb; transform: scale(1.03);
     }
     textarea, input, .stTextInput > div > div > input {
-        background-color: #f0f7ff !important;
-        border-radius: 8px;
+        background-color: #f0f7ff !important; border-radius: 8px;
         border: 1px solid #93c5fd;
     }
     footer {visibility: hidden;}
     .footer-text {
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        background-color: #3b82f6;
-        color: white;
-        text-align: center;
-        padding: 8px;
-        font-size: 14px;
-        border-top: 1px solid #1e3a8a;
+        position: fixed; bottom: 0; width: 100%;
+        background-color: #3b82f6; color: white; text-align: center;
+        padding: 8px; font-size: 14px; border-top: 1px solid #1e3a8a;
     }
     </style>
-    <div class="footer-text">
-        © 2025 Aditya Persaud | EN–FR Translation App
-    </div>
+    <div class="footer-text">© 2025 Aditya Persaud | EN–FR Translation App</div>
 """, unsafe_allow_html=True)
 
-
-# Sidebar: Model selection
+# Sidebar: model selection
 st.sidebar.title("Model Selection")
 
 model_descriptions = {
-    "Fine-tuned (Full dataset, 1.2M rows)": "Trained on the full 1.2M English–French dataset for maximum accuracy and coverage.",
-    "Fine-tuned (Distilled dataset)": "Trained on a distilled subset (~200k pairs) optimized for faster inference with minimal quality loss and SacreBLEU alignment",
-    "Fine-tuned (Distilled dataset comet)": "Trained on a distilled subset (~200k pairs) optimized for faster inference with minimal quality loss and COMET alignment.",
+    "Fine-tuned (Full dataset, 1.2M rows)": "Trained on the full 1.2M English–French dataset.",
+    "Fine-tuned (Distilled dataset)": "Distilled subset (~200k pairs) optimized for speed.",
+    "Fine-tuned (Distilled dataset comet)": "Distilled dataset optimized for COMET alignment."
 }
 
 model_options = {
@@ -87,41 +62,40 @@ model_path = model_options[model_choice]
 st.sidebar.caption(model_descriptions[model_choice])
 
 base_checkpoint = "Helsinki-NLP/opus-mt-en-fr"
-use_base_fallback = st.sidebar.checkbox(f"Fallback to base ({base_checkpoint}) if loading fails", value=True)
+use_base_fallback = st.sidebar.checkbox(f"Fallback to base model ({base_checkpoint})", value=True)
 
-# Sidebar: Metric selection
+# Metrics selection
 st.sidebar.markdown("---")
 metric_options = st.sidebar.multiselect(
-    "Select metrics for evaluation",
+    "Select metrics",
     ["BLEU", "SacreBLEU", "METEOR", "BERTScore", "chrF", "COMET"],
     default=["SacreBLEU", "chrF"]
 )
 
-# Load model & tokenizer
+# Load translation model
 @st.cache_resource(show_spinner=True)
-def load_model_tokenizer(primary_path: str, base_ckpt: str, allow_fallback: bool):
+def load_model_tokenizer(primary_path, fallback_path, allow_fallback):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     try:
         tokenizer = AutoTokenizer.from_pretrained(primary_path)
         model = AutoModelForSeq2SeqLM.from_pretrained(primary_path).to(device)
         return tokenizer, model, device, primary_path
-    except Exception as e:
+    except Exception:
         if not allow_fallback:
-            raise RuntimeError(f"Failed to load model from '{primary_path}'. {e}")
-        tokenizer = AutoTokenizer.from_pretrained(base_ckpt)
-        model = AutoModelForSeq2SeqLM.from_pretrained(base_ckpt).to(device)
-        return tokenizer, model, device, base_ckpt
+            raise
+        tokenizer = AutoTokenizer.from_pretrained(fallback_path)
+        model = AutoModelForSeq2SeqLM.from_pretrained(fallback_path).to(device)
+        return tokenizer, model, device, fallback_path
 
 tokenizer, model, device, loaded_from = load_model_tokenizer(model_path, base_checkpoint, use_base_fallback)
-st.info(f"Loaded: **{loaded_from}** ({'fine-tuned' if loaded_from == model_path else 'base'})")
+st.info(f"Loaded model: **{loaded_from}**")
 
-
-# Load selected metrics
+# Load metrics
 metric_loaders = {}
 
-def safe_load_metric(name, *args, **kwargs):
+def safe_load_metric(name):
     try:
-        return evaluate.load(name, *args, **kwargs)
+        return evaluate.load(name)
     except Exception as e:
         st.warning(f"Failed to load {name}: {e}")
         return None
@@ -137,33 +111,29 @@ if "BERTScore" in metric_options:
 if "chrF" in metric_options:
     metric_loaders["chrF"] = safe_load_metric("chrf")
 
-# COMET integration
-# COMET integration
+# COMET via HuggingFace API
 if "COMET" in metric_options:
     try:
-        from comet import download_model, load_from_checkpoint
-
         @st.cache_resource
-        def load_comet_model():
-            ckpt_path = download_model("wmt20-comet-qe-mini")
-            model = load_from_checkpoint(ckpt_path)
-            return model
-
-        comet_model = load_comet_model()
-        st.sidebar.success("COMET model loaded successfully (mini version)")
-
+        def load_comet_api():
+            token = st.secrets["HF_TOKEN"]
+            return InferenceClient("Unbabel/COMET", token=token)
+        comet_api = load_comet_api()
+        st.sidebar.success("COMET API ready")
     except Exception as e:
-        st.warning(f"Failed to load COMET: {e}")
-        comet_model = None
+        st.warning(f"COMET API error: {e}")
+        comet_api = None
 else:
-    comet_model = None
+    comet_api = None
 
-
-# Metric computation
-def compute_selected_metrics(preds: List[str], refs: List[str], srcs: List[str] = None) -> Dict[str, float]:
+# Compute Metrics
+def compute_selected_metrics(preds, refs, srcs=None):
     refs_wrapped = [[r] for r in refs]
     out = {}
+
     for name, metric in metric_loaders.items():
+        if metric is None:
+            continue
         try:
             if name == "SacreBLEU":
                 out[name] = metric.compute(predictions=preds, references=refs_wrapped)["score"]
@@ -172,71 +142,53 @@ def compute_selected_metrics(preds: List[str], refs: List[str], srcs: List[str] 
             elif name == "METEOR":
                 out[name] = metric.compute(predictions=preds, references=refs)["meteor"]
             elif name == "BERTScore":
-                bs = metric.compute(predictions=preds, references=refs, lang="fr")
-                out["BERTScore_F1"] = float(sum(bs["f1"]) / len(bs["f1"])) if bs["f1"] else 0.0
+                b = metric.compute(predictions=preds, references=refs, lang="fr")
+                out["BERTScore_F1"] = sum(b["f1"]) / len(b["f1"])
             elif name == "chrF":
                 out["chrF"] = metric.compute(predictions=preds, references=refs_wrapped)["score"]
         except Exception as e:
             out[name] = f"Error: {e}"
 
-    if comet_model is not None and srcs is not None:
+    # COMET API
+    if comet_api is not None and refs and srcs:
         try:
-            data = [{"src": s, "mt": p, "ref": r} for s, p, r in zip(srcs, preds, refs)]
-            result = comet_model.predict(data, batch_size=8, gpus=0)
-            sys_score = result["system_score"]
-            out["COMET"] = float(sys_score)
+            comet_score = comet_api.post(json={"src": srcs[0], "mt": preds[0], "ref": refs[0]})
+            out["COMET"] = comet_score.get("score", None)
         except Exception as e:
             out["COMET"] = f"Error: {e}"
 
     return out
 
-
 # Translation function
-def translate_batch(sentences_en: List[str]) -> List[str]:
-    if not sentences_en:
-        return []
-    inputs = tokenizer(sentences_en, return_tensors="pt", padding=True, truncation=True).to(device)
+def translate_batch(sentences):
+    inputs = tokenizer(sentences, return_tensors="pt", padding=True, truncation=True).to(device)
     with torch.no_grad():
         outputs = model.generate(**inputs)
-    return [tokenizer.decode(g, skip_special_tokens=True).strip() for g in outputs]
+    return [tokenizer.decode(g, skip_special_tokens=True) for g in outputs]
 
-
-# UI: Single sentence
+# UI
 st.title("English → French Translation")
-st.caption("Choose between fine-tuned models and evaluate using selected metrics (BLEU, SacreBLEU, chrF, COMET, etc.).")
 
-st.subheader("Try a single sentence or paragraph")
 src = st.text_area("English text", height=120)
-ref = st.text_input("Optional French reference (for metrics)", "")
+ref = st.text_input("Optional French reference")
 
 col1, col2 = st.columns(2)
-with col1:
-    run_btn = st.button("Translate")
-with col2:
-    score_btn = st.button("Translate + Score")
+run_btn = col1.button("Translate")
+score_btn = col2.button("Translate + Score")
 
 if run_btn or score_btn:
     if not src.strip():
-        st.warning("Please enter an English sentence.")
+        st.warning("Enter text")
     else:
         pred = translate_batch([src])[0]
-        st.markdown("**Translation:**")
         st.success(pred)
 
         if score_btn and ref.strip():
             scores = compute_selected_metrics([pred], [ref], [src])
-            st.markdown("**Metrics:**")
             st.json(scores)
-        elif score_btn and not ref.strip():
-            st.info("No reference provided — metrics skipped.")
-
 
 # Batch mode
-st.subheader("Batch evaluation from file")
-uploaded = st.file_uploader(
-    "Upload CSV/TSV/JSON with columns `en` (source) and `fr` (reference)",
-    type=["csv", "tsv", "json"],
-)
+uploaded = st.file_uploader("Upload CSV/TSV/JSON with `en` and `fr`")
 
 if uploaded:
     if uploaded.name.endswith(".csv"):
@@ -247,37 +199,32 @@ if uploaded:
         df = pd.read_json(uploaded)
 
     if not {"en", "fr"}.issubset(df.columns):
-        st.error("Missing required columns: 'en' and 'fr'")
+        st.error("Missing `en` / `fr` columns")
     else:
-        st.write(f"Loaded {len(df)} rows.")
         batch_size = st.number_input("Batch size", 1, 128, 32)
+
         if st.button("Run batch translate + evaluate"):
-            preds = []
             texts = df["en"].astype(str).tolist()
             refs = df["fr"].astype(str).tolist()
+            preds = []
 
             for i in range(0, len(texts), batch_size):
-                preds.extend(translate_batch(texts[i:i + batch_size]))
+                preds.extend(translate_batch(texts[i:i+batch_size]))
 
             df["prediction_fr"] = preds
-            st.dataframe(df.head(10))
-            scores = compute_selected_metrics(preds, refs, texts)
-            st.markdown("### Aggregate metrics")
-            st.json(scores)
-            st.download_button(
-                "Download results CSV",
-                data=df.to_csv(index=False).encode("utf-8"),
-                file_name="predictions_en_fr.csv",
-                mime="text/csv"
-            )
+            st.dataframe(df.head())
 
+            scores = compute_selected_metrics(preds, refs, texts)
+            st.json(scores)
+
+            st.download_button(
+                "Download CSV", df.to_csv(index=False).encode("utf-8"),
+                "predictions_en_fr.csv", "text/csv"
+            )
 
 # Notes
 with st.expander("Notes"):
-    st.markdown(
-        "- You can switch between fine-tuned models in the sidebar.\n"
-        "- Choose evaluation metrics such as BLEU, METEOR, chrF, BERTScore, or COMET.\n"
-        "- COMET provides semantic evaluation aligned with human judgment.\n"
-        "- chrF captures character-level morphological accuracy.\n"
-        "- BERTScore assesses contextual and semantic similarity."
-    )
+    st.markdown("""
+    - Evaluate with BLEU, METEOR, chrF, BERTScore, or COMET.
+    - COMET is computed using the official Hugging Face API.
+    """)
