@@ -145,7 +145,7 @@ if "COMET" in metric_options:
 
         @st.cache_resource
         def load_comet_model():
-            ckpt_path = download_model("wmt22-cometkiwi-da")
+            ckpt_path = download_model("wmt20-comet-qe-da")
             model = load_from_checkpoint(ckpt_path)
             return model
 
