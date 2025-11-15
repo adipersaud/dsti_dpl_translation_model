@@ -138,13 +138,14 @@ if "chrF" in metric_options:
     metric_loaders["chrF"] = safe_load_metric("chrf")
 
 # COMET integration
+# COMET integration
 if "COMET" in metric_options:
     try:
+        from comet import download_model, load_from_checkpoint
 
         @st.cache_resource
         def load_comet_model():
-            # Download official lightweight COMET model
-            ckpt_path = download_model("cometkiwi-22da")
+            ckpt_path = download_model("wmt22-cometkiwi-da")
             model = load_from_checkpoint(ckpt_path)
             return model
 
