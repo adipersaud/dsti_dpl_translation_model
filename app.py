@@ -6,7 +6,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import evaluate
 import pandas as pd
-from comet import load_from_checkpoint
+from comet import download_model, load_from_checkpoint
 
 
 import nltk
@@ -140,21 +140,23 @@ if "chrF" in metric_options:
 # COMET integration
 if "COMET" in metric_options:
     try:
-        from comet import download_model, load_from_checkpoint
 
         @st.cache_resource
         def load_comet_model():
-            model_path = "Unbabel/wmt22-cometkiwi-da"
-            model = load_from_checkpoint(model_path)
+            # Download official lightweight COMET model
+            ckpt_path = download_model("cometkiwi-22da")
+            model = load_from_checkpoint(ckpt_path)
             return model
 
         comet_model = load_comet_model()
         st.sidebar.success("COMET model loaded successfully")
+
     except Exception as e:
         st.warning(f"Failed to load COMET: {e}")
         comet_model = None
 else:
     comet_model = None
+
 
 
 # Metric computation
