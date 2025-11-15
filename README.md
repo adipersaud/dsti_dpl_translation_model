@@ -59,3 +59,5 @@ pip install -r requirements.txt
 streamlit run app.py 
 
 ## Good to go!
+# dsti_dpl_translation_model
+Steamlit Application of my Translation model - English to French
