@@ -145,19 +145,18 @@ if "COMET" in metric_options:
 
         @st.cache_resource
         def load_comet_model():
-            ckpt_path = download_model("wmt20-comet-qe-da")
+            ckpt_path = download_model("wmt20-comet-qe-mini")
             model = load_from_checkpoint(ckpt_path)
             return model
 
         comet_model = load_comet_model()
-        st.sidebar.success("COMET model loaded successfully")
+        st.sidebar.success("COMET model loaded successfully (mini version)")
 
     except Exception as e:
         st.warning(f"Failed to load COMET: {e}")
         comet_model = None
 else:
     comet_model = None
-
 
 
 # Metric computation
