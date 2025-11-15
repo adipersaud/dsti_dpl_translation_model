@@ -6,6 +6,8 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import evaluate
 import pandas as pd
+from comet import load_from_checkpoint
+
 
 import nltk
 nltk.download("wordnet", quiet=True)
@@ -140,10 +142,11 @@ if "COMET" in metric_options:
     try:
         from comet import download_model, load_from_checkpoint
 
-        @st.cache_resource(show_spinner=True)
+        @st.cache_resource
         def load_comet_model():
-            model_path = download_model("Unbabel/wmt22-comet-da")
-            return load_from_checkpoint(model_path)
+            model_path = "Unbabel/wmt22-cometkiwi-da"
+            model = load_from_checkpoint(model_path)
+            return model
 
         comet_model = load_comet_model()
         st.sidebar.success("COMET model loaded successfully")
