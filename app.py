@@ -10,6 +10,9 @@ from huggingface_hub import InferenceClient
 
 import json
 
+import comet
+st.write("COMET version:", comet.__version__)
+
 def to_json_string(x):
     if x is None:
         return ""
